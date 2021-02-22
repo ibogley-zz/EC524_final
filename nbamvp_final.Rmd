@@ -1,0 +1,17 @@
+---
+title: "NBA MVP Predictions"
+author: "Ian Bogley, Jonas Bowman"
+date: "2/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
+```
+
+
+```{r intro}
+library(pacman)
+p_load(tidyverse)
+```
+
