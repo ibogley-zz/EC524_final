@@ -11,7 +11,26 @@ knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
 
 
 ```{r intro}
+#Load in packages
 library(pacman)
-p_load(tidyverse)
+p_load(rvest,tidyverse,janitor)
+
+#Read in data
+playerstats_df <- read.csv("data/player_data.csv") %>% clean_names()
+players_df <- read.csv("data/Players.csv") %>% clean_names()
+seasonstats_df <- read.csv("data/Seasons_Stats.csv") %>%
+  mutate(season = paste(Year-1,Year,sep = "")) %>%
+  .[,c(1,2,54,3:53)] %>% clean_names()
+
+#Read in wikipedia scrapped data
+mvp <- read_html("https://en.wikipedia.org/wiki/NBA_Most_Valuable_Player_Award") %>%
+  html_nodes(xpath = "//*[@id='mw-content-text']/div[1]/table[4]") %>%
+  html_table() %>% data.frame() %>% clean_names()
+allstars <- read_html("https://en.wikipedia.org/wiki/List_of_NBA_All-Stars") %>%
+  html_nodes(xpath = "//*[@id='mw-content-text']/div[1]/table[2]") %>%
+  html_table() %>% data.frame() %>% clean_names()
 ```
+
+
+
 
