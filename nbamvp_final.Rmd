@@ -26,11 +26,17 @@ seasonstats_df <- read.csv("data/Seasons_Stats.csv") %>%
 mvp <- read_html("https://en.wikipedia.org/wiki/NBA_Most_Valuable_Player_Award") %>%
   html_nodes(xpath = "//*[@id='mw-content-text']/div[1]/table[4]") %>%
   html_table() %>% data.frame() %>% clean_names() %>%
-  mutate(season = gsub("[^[:alnum:]]","-19",season))
+  mutate(season = gsub("[^[:alnum:]]","-19",season),
+         player = gsub(" +$","",gsub("[^[:alpha:]]"," ",player)))
 mvp$season[45:65] <- gsub("^([0-9]{4})([^[:alnum:]]{1}[0-9]{2})([0-9]{2})$","\\1-20\\3",mvp$season[45:65])
 allstars <- read_html("https://en.wikipedia.org/wiki/List_of_NBA_All-Stars") %>%
   html_nodes(xpath = "//*[@id='mw-content-text']/div[1]/table[2]") %>%
-  html_table() %>% data.frame() %>% clean_names()
+  html_table() %>% data.frame() %>% clean_names() %>%
+  mutate(player = gsub(" +$","",gsub("[^[:alpha:]]"," ",player))) %>%
+  rename("selections" = "selections_c")
+allstars$player[1] <- "Kareem Abdul Jabbar"
+allstars$player[19] <- "Hakeem Olajuwon"
+allstars$player[430] <- "Metta World Peace"
 ```
 
 
