@@ -11,24 +11,37 @@ knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
 
 
 ```{r intro}
-#Load in packages
+###PACKAGES###
 library(pacman)
 p_load(rvest,tidyverse,janitor)
 
-#Read in data
+
+###DATA###
+##Read in data, use janitor::clean_names for renaming columns
+
+#background info
 playerstats_df <- read.csv("data/player_data.csv") %>% clean_names()
+
+#physical characteristics
 players_df <- read.csv("data/Players.csv") %>% clean_names()
+
+#season stats
 seasonstats_df <- read.csv("data/Seasons_Stats.csv") %>%
+  #Change year format to be more specific (from xxxx-yy to xxxx-yyyy)
   mutate(season = paste(Year-1,Year,sep = "")) %>%
+  #reorder columns for convenience
   .[,c(1,2,54,3:53)] %>% clean_names()
 
 #Read in wikipedia scrapped data
+#MVP data
 mvp <- read_html("https://en.wikipedia.org/wiki/NBA_Most_Valuable_Player_Award") %>%
   html_nodes(xpath = "//*[@id='mw-content-text']/div[1]/table[4]") %>%
   html_table() %>% data.frame() %>% clean_names() %>%
   mutate(season = gsub("[^[:alnum:]]","-19",season),
          player = gsub(" +$","",gsub("[^[:alpha:]]"," ",player)))
 mvp$season[45:65] <- gsub("^([0-9]{4})([^[:alnum:]]{1}[0-9]{2})([0-9]{2})$","\\1-20\\3",mvp$season[45:65])
+
+#All-star selections
 allstars <- read_html("https://en.wikipedia.org/wiki/List_of_NBA_All-Stars") %>%
   html_nodes(xpath = "//*[@id='mw-content-text']/div[1]/table[2]") %>%
   html_table() %>% data.frame() %>% clean_names() %>%
