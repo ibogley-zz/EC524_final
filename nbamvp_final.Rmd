@@ -28,7 +28,7 @@ players_df <- read.csv("data/Players.csv") %>% clean_names()
 #season stats
 seasonstats_df <- read.csv("data/Seasons_Stats.csv") %>%
   #Change year format to be more specific (from xxxx-yy to xxxx-yyyy)
-  mutate(season = paste(Year-1,Year,sep = "")) %>%
+  mutate(season = paste(Year-1,Year,sep = "-")) %>%
   #reorder columns for convenience
   .[,c(1,2,54,3:53)] %>% clean_names()
 
@@ -53,5 +53,23 @@ allstars$player[430] <- "Metta World Peace"
 ```
 
 
+```{r intro}
+#merging the data
 
+#rename names to players in playerstats_df
+
+playerstats_df<- playerstats_df%>%rename(player = name)
+
+
+
+df_halffull <- left_join(seasonstats_df, players_df,playerstats_df, by = "player")
+
+
+full_df <- left_join(df_halffull, mvp, by ="season")
+
+#rename player. y mvp 
+full_df <- full_df%>%rename(mvp = player.y)
+
+
+```
 
