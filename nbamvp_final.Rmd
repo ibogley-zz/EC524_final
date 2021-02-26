@@ -101,6 +101,6 @@ final_df <- full_df %>%
   #create an age column
   mutate(age = year-born) %>%
   #reorder columns for convenience
-  .[,c(2:4,56:59,63,64,60,61,5:54)]
+  .[,c(2:4,63:64,56:59,60,61,5:54)]
 ```
 
