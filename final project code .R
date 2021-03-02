@@ -27,14 +27,14 @@ p_load(
 
 
 set.seed(101)
-train_test_split = full_df%>%initial_split(.8)
+train_test_split = final_df%>%initial_split(.8)
 
 df_train = train_test_split %>% training()
 df_test = train_test_split %>% testing()
 
+final_df$mvp <- as.factor(final_df$mvp)
 
-
-df_recipe = full_df%>%recipe(mvp ~.)%>%
+df_recipe = final_df%>%filter(year>1985)%>% recipe(mvp ~.)%>%
   step_knnimpute(all_predictors(), neighbors=5)%>%
   step_dummy(all_predictors() & all_nominal())%>%
   step_nzv(all_predictors()) %>% 
@@ -49,7 +49,7 @@ df_clean
 
 set.seed(101)
 
-df_cv = train_df %>%vfold_cv(v=5)
+df_cv = df_train %>%vfold_cv(v=5)
 
 
 #define boost model
