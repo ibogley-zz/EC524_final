@@ -9,6 +9,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
 ```
 
+A constant in the sporting world is attempting to predict various metrics associated with these unpredictable games. From march madness, where individuals make their bets for how college playoffs will turn out to sports fans arguing over whether their team will succeed.
+
+An interesting application of this may be in the MVP and All-star selections, where players are chosen based off of voting systems associated with media spectators and individual ones. One question is whether we might be able to use machine learning to predict how voters chose 
+
+Let's use standard machine learning techniques to attempt predictions on an NBA season's MVP and all-star selections. To start, lets load the packages we need for this project.
 
 ```{r intro}
 ###PACKAGES###
