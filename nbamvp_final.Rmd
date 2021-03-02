@@ -103,6 +103,7 @@ final_df <- full_df %>%
   #create an age column
   mutate(age = year-born) %>%
   #reorder columns for convenience
-  .[,c(2:4,63:64,56:59,60,61,5:54)]
+  .[,c(2:4,63:64,56:59,60,61,5:54)] %>%
+  select(-c(blanl,blank2))
 ```
 NOTE: There wasn't an all-star game in the 1998-1999 season, and there were fewer games due to a lockout.
