@@ -125,7 +125,42 @@ for (i in c("C","PG","PF","SG","SF")) {
 ```
 NOTE: There wasn't an all-star game in the 1998-1999 season, and there were fewer games due to a lockout.
 
-```{r}
+```{r elasticnet}
+#split df into training and testing sets
+final_split <- final_df %>% initial_split(prop = .8)
+final_train <- final_split %>% training()
+final_test <- final_split %>% testing()
+final_cv <- final_train %>% vfold_cv(v = 3)
 
+
+#Create recipe and prepare it for use
+final_recipe <- final_train %>% recipe(mvp ~ .) %>%
+  step_rm(player) %>% step_rm(collage) %>% step_rm(pos) %>%
+  step_rm(birth_city) %>% step_rm(birth_state) %>%
+  step_normalize(all_predictors() & all_numeric()) %>%
+  step_dummy(all_predictors() & all_nominal()) %>%
+  step_modeimpute(all_predictors()&all_nominal()) %>%
+  step_meanimpute(all_predictors()&all_numeric())
+final_clean <- final_recipe %>% prep() %>% juice()
+
+#prepare elasticnet logit model
+model_en <- logistic_reg(penalty = tune(), mixture = tune()) %>%
+  set_engine("glmnet")
+
+#prepare elasticnet logit workflow
+workflow_en = workflow() %>%
+  add_model(model_en) %>%
+  add_recipe(final_recipe)
+
+#calculate the best models
+cv_en = workflow_en %>%
+  tune_grid(
+    final_cv,
+    grid = grid_regular(mixture(), penalty(), levels = 3),
+    metrics = metric_set(accuracy)
+  )
+
+#Show the best model
+cv_en %>% show_best()
 ```
 
