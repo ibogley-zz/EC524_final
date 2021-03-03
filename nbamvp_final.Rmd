@@ -72,8 +72,14 @@ allstars$player[19] <- "Hakeem Olajuwon"
 allstars$player[430] <- "Metta World Peace"
 ```
 
+Here, we have 5 datasets.
+- playerstats_df:
+- players_df:
+- seasonstats_df:
+- mvp: Webscrapped from wikipedia, this dataframe has a list of mvp's from each season
+- allstars: Webscrapped from wikipedia, this dataframe has a list of all players chosen for an allstar game, along with the years they were selected
 
-```{r intro}
+```{r data wrangling}
 #merging the player df's
 df_halffull <- left_join(seasonstats_df, players_df,playerstats_df, by = "player")
 
@@ -109,6 +115,17 @@ final_df <- full_df %>%
   mutate(age = year-born) %>%
   #reorder columns for convenience
   .[,c(2:4,63:64,56:59,60,61,5:54)] %>%
-  select(-c(blanl,blank2))
+  select(-c(blanl,blank2)) %>%
+  mutate(mvp = as_factor(as.numeric(mvp)), allstar = as_factor(as.numeric(allstar)))
+
+#for loop creating dummy variables for different positions
+for (i in c("C","PG","PF","SG","SF")) {
+  eval(parse(text = paste("final_df$",i,"<- as.numeric(grepl('",i,"',final_df$pos))",sep = "")))
+}
 ```
 NOTE: There wasn't an all-star game in the 1998-1999 season, and there were fewer games due to a lockout.
+
+```{r}
+
+```
+
