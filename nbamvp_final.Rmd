@@ -160,7 +160,23 @@ cv_en = workflow_en %>%
     metrics = metric_set(accuracy)
   )
 
-#Show the best model
-cv_en %>% show_best()
+final_en = workflow_en %>%
+  finalize_workflow(select_best(cv_en, 'accuracy'))
+
+#Fitting the final model
+final_fit_en = final_en %>% fit(data = final_train)
+
+#Predict onto the test data
+y_hat = final_fit_en %>% predict(new_data = final_test, type ="class")
+
+cm_logistic = conf_mat(
+  data = tibble(
+    y_hat = y_hat %>% unlist(),
+    y = final_test$mvp
+  ),
+  truth = y, estimate = y_hat
+)
+
+cm_logistic
 ```
 
