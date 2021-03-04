@@ -18,7 +18,8 @@ Let's use standard machine learning techniques to attempt predictions on an NBA 
 ```{r intro}
 ###PACKAGES###
 library(pacman)
-p_load(rvest,tidyverse,janitor)
+p_load(rvest,tidyverse,janitor,tidymodels,broom,
+       rpart,rpart.plot)
 
 
 ###DATA###
@@ -126,6 +127,7 @@ for (i in c("C","PG","PF","SG","SF")) {
 NOTE: There wasn't an all-star game in the 1998-1999 season, and there were fewer games due to a lockout.
 
 ```{r elasticnet}
+set.seed(8237)
 #split df into training and testing sets
 final_split <- final_df %>% initial_split(prop = .8)
 final_train <- final_split %>% training()
@@ -178,5 +180,43 @@ cm_logistic = conf_mat(
 )
 
 cm_logistic
+
+###NOTE: maybe we use p_hat instead of y_hat? probabilities instead of levels?
+```
+
+```{r tree}
+#decision tree model
+model_tree <- decision_tree(
+  mode = "classification",
+  cost_complexity = tune(),
+  tree_depth = tune(),
+  min_n = 10
+) %>%
+  set_engine("rpart")
+
+#setup decision tree workflow
+tree_workflow <- workflow() %>%
+  add_model(model_tree) %>% 
+  add_recipe(final_recipe)
+
+#tune models
+tree_cv_fit <- tree_workflow %>% tune_grid(
+  final_cv,
+  grid = expand_grid(
+    cost_complexity = seq(0,.15,by = .05),
+    tree_depth = c(1,5,10)
+  ),
+  metrics = metric_set(accuracy, roc_auc)
+)
+
+#select the best model based on accuracy
+best_flow_tree <- tree_workflow %>%
+  finalize_workflow(select_best(tree_cv_fit, metric = "accuracy")) %>%
+  fit(data = final_df)
+
+#pull the best decision tree model
+best_tree <- best_flow_tree %>% pull_workflow_fit()
+
+best_tree$fit %>% rpart.plot()
 ```
 
