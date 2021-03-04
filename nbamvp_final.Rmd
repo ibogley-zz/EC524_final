@@ -226,14 +226,13 @@ best_tree$fit %>% rpart.plot()
 #set seed
 set.seed(101)
 #cv 
-final_cv = df_train %>%vfold_cv(v=5)
+final_cv = final_train %>%vfold_cv(v=5)
 
 #Elasticnet regression
 
 model_en = linear_reg(penalty = tune(), mixture = tune()) %>% set_engine("glmnet")
 
 #Define the workflow
-
 workflow_en = workflow() %>% 
   add_model(model_en) %>% 
   add_recipe(final_recipe)
