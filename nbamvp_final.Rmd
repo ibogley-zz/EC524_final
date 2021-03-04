@@ -74,9 +74,9 @@ allstars$player[430] <- "Metta World Peace"
 ```
 
 Here, we have 5 datasets.
-- playerstats_df:
-- players_df:
-- seasonstats_df:
+- playerstats_df: Years a player was in the NBA, their position, physical characteristics, college, and birth date
+- players_df: Mostly identical variables to playerstats_df, just with birth city and state included
+- seasonstats_df: Each player's season statistics by year.
 - mvp: Webscrapped from wikipedia, this dataframe has a list of mvp's from each season
 - allstars: Webscrapped from wikipedia, this dataframe has a list of all players chosen for an allstar game, along with the years they were selected
 
@@ -223,27 +223,10 @@ best_tree$fit %>% rpart.plot()
 ```
 
 ```{elasticnet with linear reg}
-
-#Create recipe and prepare it for use
-final_recipe <- df_train %>% recipe(mvp ~ .) %>%
-  step_rm(player) %>% step_rm(collage) %>% step_rm(pos) %>%
-  step_rm(birth_city) %>% step_rm(birth_state) %>%
-  step_normalize(all_predictors() & all_numeric()) %>%
-  step_dummy(all_predictors() & all_nominal()) %>%
-  step_modeimpute(all_predictors()&all_nominal()) %>%
-  step_meanimpute(all_predictors()&all_numeric())
-final_clean <- final_recipe %>% prep() %>% juice()
-#prep and juice
-final_clean = df_recipe%>% prep()%>%juice()
-
-
-#view data
-skim(df_clean)
-
 #set seed
 set.seed(101)
 #cv 
-df_cv = df_train %>%vfold_cv(v=5)
+final_cv = df_train %>%vfold_cv(v=5)
 
 #Elasticnet regression
 
@@ -257,7 +240,7 @@ workflow_en = workflow() %>%
 
 cv_en = workflow_en %>%
   tune_grid(
-    df_cv,
+    final_cv,
     grid = grid_regular(mixture(), penalty(), levels = 5:5),
     metrics = metric_set(rmse)
   )
