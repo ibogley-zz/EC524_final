@@ -140,7 +140,7 @@ test_years <- unique(final_df$year)[!unique(final_df$year) %in% train_years] %>%
 final_train <- final_df[final_df$year %in% train_years,]
 final_test <- final_df[final_df$year %in% test_years,]
 
-final_cv <- final_train %>% vfold_cv(v = 3,strata = year)
+final_cv <- final_train %>% vfold_cv(v = 3,strata = "year")
 
 
 #Create recipe and prepare it for use
