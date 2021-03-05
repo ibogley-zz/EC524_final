@@ -40,6 +40,8 @@ seasonstats_df <- read.csv("data/Seasons_Stats.csv") %>%
   .[,c(1,2,54,3:53)] %>% clean_names() %>%
   #Only considering data after the 1985 season
   filter(year>1985) %>%
+  #exclude the 1998-1999 season with no allstar break
+  filter(!year == 1999) %>%
   #Clean up player names
   mutate(player = gsub(" +$","",gsub("[^[:alpha:]]"," ",player)))
 
@@ -140,13 +142,13 @@ test_years <- unique(final_df$year)[!unique(final_df$year) %in% train_years] %>%
 final_train <- final_df[final_df$year %in% train_years,]
 final_test <- final_df[final_df$year %in% test_years,]
 
-final_cv <- final_train %>% vfold_cv(v = 3,strata = "year")
-
+final_cv <- final_train %>% group_vfold_cv(group = year)
 
 #Create recipe and prepare it for use
 final_recipe <- final_train %>% recipe(allstar ~ .) %>%
   step_rm(player) %>% step_rm(collage) %>% step_rm(pos) %>%
   step_rm(birth_city) %>% step_rm(birth_state) %>%
+  step_rm(season) %>% 
   step_normalize(all_predictors() & all_numeric()) %>%
   step_dummy(all_predictors() & all_nominal()) %>%
   step_modeimpute(all_predictors()&all_nominal()) %>%
