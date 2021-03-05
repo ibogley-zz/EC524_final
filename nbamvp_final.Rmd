@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE,cache = TRUE)
 ```
 
 A constant in the sporting world is attempting to predict various metrics associated with these unpredictable games. From march madness, where individuals make their bets for how college playoffs will turn out to sports fans arguing over whether their team will succeed.
@@ -80,7 +80,7 @@ Here, we have 5 datasets.
 - mvp: Webscrapped from wikipedia, this dataframe has a list of mvp's from each season
 - allstars: Webscrapped from wikipedia, this dataframe has a list of all players chosen for an allstar game, along with the years they were selected
 
-```{r data wrangling}
+```{r data_wrangling}
 #merging the player df's
 df_halffull <- left_join(seasonstats_df, players_df,playerstats_df, by = "player")
 
@@ -126,13 +126,14 @@ for (i in c("C","PG","PF","SG","SF")) {
 ```
 NOTE: There wasn't an all-star game in the 1998-1999 season, and there were fewer games due to a lockout.
 
-
+NOTE: New Orleans Pelicans used to be the Hornets from 2002-2013, and were located in OKC from 2005-2007
+Some teams changed their team name or location during our current timeframe, I argue we might as well remove team from our predictions.
 ```{r elasticnet}
 set.seed(8237)
 
 #split df into training and testing sets by randomly choosing years, each as their own sample
 #32 years possible, we will be using 80% (rounded up to 26 total years) for our training and the remainder for testing.
-train_years <- sample(unique(final_df$year),26) %>%
+train_years <- sample(unique(final_df$year),15) %>%
   sort()
 test_years <- unique(final_df$year)[!unique(final_df$year) %in% train_years] %>%
   sort()
@@ -144,12 +145,17 @@ final_cv <- final_train %>% group_vfold_cv(group = year)
 
 #Create recipe and prepare it for use
 final_recipe <- final_train %>% recipe(allstar ~ .) %>%
+  #Remove problematic variables
   step_rm(player) %>% step_rm(collage) %>% step_rm(pos) %>%
   step_rm(birth_city) %>% step_rm(birth_state) %>%
-  step_rm(season) %>% 
+  step_rm(season) %>% step_rm(tm) %>%
+  #normalize numeric variables
   step_normalize(all_predictors() & all_numeric()) %>%
+  #turn categorical variables into dummy variables
   step_dummy(all_predictors() & all_nominal()) %>%
+  #impute categorical variables
   step_modeimpute(all_predictors()&all_nominal()) %>%
+  #impute numeric variables
   step_meanimpute(all_predictors()&all_numeric())
 final_clean <- final_recipe %>% prep() %>% juice()
 
