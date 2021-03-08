@@ -124,15 +124,12 @@ for (i in c("C","PG","PF","SG","SF")) {
   eval(parse(text = paste("final_df$",i,"<- as.numeric(grepl('",i,"',final_df$pos))",sep = "")))
 }
 ```
-NOTE: There wasn't an all-star game in the 1998-1999 season, and there were fewer games due to a lockout.
 
-NOTE: New Orleans Pelicans used to be the Hornets from 2002-2013, and were located in OKC from 2005-2007
-Some teams changed their team name or location during our current timeframe, I argue we might as well remove team from our predictions.
 ```{r elasticnet}
 set.seed(8237)
 
 #split df into training and testing sets by randomly choosing years, each as their own sample
-#32 years possible, we will be using 80% (rounded up to 26 total years) for our training and the remainder for testing.
+#18 years possible, we will be using 80% (rounded up to 15 total years) for our training and the remainder for testing.
 train_years <- sample(unique(final_df$year),15) %>%
   sort()
 test_years <- unique(final_df$year)[!unique(final_df$year) %in% train_years] %>%
@@ -141,6 +138,7 @@ test_years <- unique(final_df$year)[!unique(final_df$year) %in% train_years] %>%
 final_train <- final_df[final_df$year %in% train_years,]
 final_test <- final_df[final_df$year %in% test_years,]
 
+#Use each year as it's own sample
 final_cv <- final_train %>% group_vfold_cv(group = year)
 
 #Create recipe and prepare it for use
@@ -188,14 +186,17 @@ y_hat = final_fit_en %>% predict(new_data = final_test, type ="class")
 cm_logistic = conf_mat(
   data = tibble(
     y_hat = y_hat %>% unlist(),
-    y = final_test$mvp
+    y = final_test$allstar
   ),
   truth = y, estimate = y_hat
 )
 
-cm_logistic
-
-###NOTE: maybe we use p_hat instead of y_hat? probabilities instead of levels?
+cm_logistic$table %>% as.data.frame() %>%
+  mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
+  ggplot(aes(x = result, y = Freq)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(x = "False Negative",y = c(600,750,900,1050),label = paste(result,"s: ",Freq,sep = "")))
+  
 ```
 
 ```{r tree}
@@ -226,38 +227,116 @@ tree_cv_fit <- tree_workflow %>% tune_grid(
 #select the best model based on accuracy
 best_flow_tree <- tree_workflow %>%
   finalize_workflow(select_best(tree_cv_fit, metric = "accuracy")) %>%
-  fit(data = final_df)
+  fit(data = final_train)
 
 #pull the best decision tree model
 best_tree <- best_flow_tree %>% pull_workflow_fit()
 
+#plot decision tree
 best_tree$fit %>% rpart.plot()
+#Fitting the final model
+final_fit_tree = best_flow_tree %>% fit(data = final_train)
+
+#Predict onto the test data
+y_hat_tree = final_fit_tree %>% predict(new_data = final_test, type ="class")
+
+cm_logistic_tree = conf_mat(
+  data = tibble(
+    y_hat = y_hat_tree %>% unlist(),
+    y = final_test$allstar
+  ),
+  truth = y, estimate = y_hat
+)
+
+cm_logistic_tree$table %>% as.data.frame() %>%
+  mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
+  ggplot(aes(x = result, y = Freq)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(x = "False Negative",y = c(600,750,900,1050),label = paste(result,"s: ",Freq,sep = "")))
 ```
 
-```{elasticnet with linear reg}
-#set seed
-set.seed(101)
-#cv 
-final_cv = final_train %>%vfold_cv(v=5)
+```{r elasticnet_lin_reg}
+#change allstar to numeric for compatibility with linear regression
+final_df$allstar <- as.numeric(final_df$allstar) - 1
+final_train$allstar <- as.numeric(final_train$allstar) - 1
+final_test$allstar <- as.numeric(final_test$allstar) - 1
+
+#rerun cv splits for updated outcome class
+final_cv2 <- final_train %>% group_vfold_cv(group = year)
+
+#rerun recipe in case it needs to update for new class of outcome variable
+final_recipe2 <- final_train %>% recipe(allstar ~ .) %>%
+  #Remove problematic variables
+  step_rm(player) %>% step_rm(collage) %>% step_rm(pos) %>%
+  step_rm(birth_city) %>% step_rm(birth_state) %>%
+  step_rm(season) %>% step_rm(tm) %>%
+  #normalize numeric variables
+  step_normalize(all_predictors() & all_numeric()) %>%
+  #turn categorical variables into dummy variables
+  step_dummy(all_predictors() & all_nominal()) %>%
+  #impute categorical variables
+  step_modeimpute(all_predictors()&all_nominal()) %>%
+  #impute numeric variables
+  step_meanimpute(all_predictors()&all_numeric())
 
 #Elasticnet regression
-
 model_en = linear_reg(penalty = tune(), mixture = tune()) %>% set_engine("glmnet")
 
 #Define the workflow
 workflow_en = workflow() %>% 
   add_model(model_en) %>% 
-  add_recipe(final_recipe)
+  add_recipe(final_recipe2)
+
 
 cv_en = workflow_en %>%
   tune_grid(
-    final_cv,
+    final_cv2,
     grid = grid_regular(mixture(), penalty(), levels = 5:5),
     metrics = metric_set(rmse)
   )
 
 cv_en %>% collect_metrics() %>% arrange(mean)
 
+#select the best model based on rmse
+best_flow_reg <- workflow_en %>%
+  finalize_workflow(select_best(cv_en, metric = "rmse")) %>%
+  fit(data = final_train)
+
+#pull the best regression model
+best_tree <- best_flow_reg %>% pull_workflow_fit()
+
+#Fitting the final model
+final_fit_reg = best_flow_reg %>% fit(data = final_train)
+
+#Predict onto the test data
+y_hat_reg = final_fit_reg %>% predict(new_data = final_test, type ="numeric")
+
+final_test$allstar_prob <- y_hat_reg$.pred
+
+#Now, lets take the top 27 estimates for each year and guess those as our allstars
+
+###NOTE: There seems to be an issue with this for loop. I think we need to create the allstar_pred vectors separately outside of the df then merge them into the test df. Then we can use that for a confusion matrix
+for (i in unique(final_test$year)) {
+  cutoff <- final_test[final_test$year == i,] %>% pull(allstar_prob) %>%
+    sort(decreasing = TRUE) %>%
+    .[25]
+  final_test[final_test$year == i,] %>%
+    mutate(allstar_pred = ifelse(allstar_prob>=cutoff,1,0))
+}
+
+cm_logistic_reg = conf_mat(
+  data = tibble(
+    y_hat = y_hat_tree %>% unlist(),
+    y = final_test$allstar
+  ),
+  truth = y, estimate = y_hat
+)
+
+cm_logistic_tree$table %>% as.data.frame() %>%
+  mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
+  ggplot(aes(x = result, y = Freq)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(x = "False Negative",y = c(600,750,900,1050),label = paste(result,"s: ",Freq,sep = "")))
 ```
 
 
