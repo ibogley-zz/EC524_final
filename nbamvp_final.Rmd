@@ -243,6 +243,7 @@ workflow_en = workflow() %>%
   add_model(model_en) %>% 
   add_recipe(final_recipe)
 
+#run the model
 cv_en = workflow_en %>%
   tune_grid(
     final_cv,
@@ -251,10 +252,111 @@ cv_en = workflow_en %>%
   )
 
 cv_en %>% collect_metrics() %>% arrange(mean)
+#finalize 
+
+enlinreg_final <- workflow_enlinreg%>%
+  finalize_workflow(select_best(cv_enlinreg, metric="rmse"))
+
+#fit final model
+
+enlinreg_final_fit = enlinreg_final%>%fit(data=final_train)
+
+
+#Predict onto the test data
+
+test_hat = enlinreg_final_fit %>% predict(new_data = final_test)
+
+head(test_hat)
+
+
+enlinreg_df = data.frame(
+  player = final_test$player,
+  year = final_test$year,
+  allstar = test_hat
+)
+
+#view
+enlinreg_df
+
+#graph
+enlinreg_df%>%filter(.pred>0.5, year==2004)%>%ggplot(aes(x=player, y=.pred))+geom_col()
+
+enlinreg_df%>%filter(.pred>0.5, year==2008)%>%ggplot(aes(x=player, y=.pred, fill=player))+geom_col()
+##predicted tmac but he isnt there, did not predict carmelo, no yao ming, no jason kidd, no wade, 
+# predicts manu ginobli 9
 
 ```
 
+```{r, boost}
+
+#define boost model
+
+allstar_boost = boost_tree(
+  mtry= NULL,
+  trees=10,
+  min_n =NULL,
+  tree_depth = tune(),
+  learn_rate = tune()
+  
+) %>% set_engine(
+  engine = "xgboost") %>% 
+  set_mode("classification")
 
 
+
+#define workflow 
+
+allstar_boost_wf =
+  workflow()%>% add_model(allstar_boost)%>%add_recipe(final_recipe)
+
+#run model
+
+cv_boost = allstar_boost_wf %>%
+  tune_grid(
+    final_cv,
+    grid = grid_regular(tree_depth(), learn_rate(), levels = 5:5),
+    metrics = metric_set(accuracy)
+  )
+
+#show the best model
+
+cv_boost %>% show_best()
+
+#finalize workflow and use it to predict onto test data
+
+
+final_boost = 
+  allstar_boost_wf %>%
+  finalize_workflow(select_best(cv_boost, "accuracy"))
+
+
+#fit final model
+
+final_fit_boost = final_boost %>% fit(data =final_train)
+
+
+#predict onto test data
+
+
+p_hat = final_fit_boost %>% predict(new_data = final_test, type="class")
+
+
+cm_boost = conf_mat(
+  data =tibble(
+    p_hat = p_hat %>% unlist(),
+    p = final_test$allstar
+  ),
+  truth = p, estimate = p_hat
+)
+#view matrix 
+cm_boost
+
+
+head(p_hat)
+
+
+
+
+```
 
 
