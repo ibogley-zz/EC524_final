@@ -1,37 +1,16 @@
 library(pacman)
-p_load(tidyverse, skimr, janitor, tidymodels, magrittr, tune,glmnet, haven)
+p_load(rvest,tidyverse)
 
-#final_df changed outcome variables to numeric
+mvp <- read_html("https://en.wikipedia.org/wiki/NBA_Most_Valuable_Player_Award") %>%
+  html_nodes(xpath = "//*[@id='mw-content-text']/div[1]/table[4]") %>%
+  html_table() %>%
+  data.frame()
+mvp
 
-final_df_num <- final_df %>%
-  mutate(mvp = as_factor(as.numeric(mvp)), allstar = as_factor(as.numeric(allstar)))
-
-final_split <- final_df_num %>% initial_split(prop = .8)
-
-final_train <- final_split %>% training()
-final_test <- final_split %>% testing()
-final_recipe <- final_train %>% recipe(mvp ~ .)
-
-final_clean <- final_recipe %>% prep() %>% juice()
-
-final_cv <- final_train %>% vfold_cv(v = 3)
-
-model_en <- logistic_reg() %>%
-  set_engine("glm")
-workflow_en = workflow() %>%
-  add_model(model_en) %>%
-  add_recipe(final_recipe)
-
-cv_en = workflow_en %>%
-  tune_grid(
-    final_cv,
-    grid = grid_regular(mixture(), penalty(), levels = 5:5),
-    metrics = metric_set(accuracy)
-  )
-
-#Show the best model
+allstars <- read_html("https://en.wikipedia.org/wiki/List_of_NBA_All-Stars") %>%
+  html_nodes(xpath = "//*[@id='mw-content-text']/div[1]/table[2]") %>%
+  html_table() %>%
+  data.frame()
+allstars
 
 
-
-
-cv_en %>% show_best()
