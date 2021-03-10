@@ -262,9 +262,9 @@ cm_logistic_tree$table %>% as.data.frame() %>%
 
 ```{r elasticnet_lin_reg}
 #change allstar to numeric for compatibility with linear regression
-final_df$allstar <- as.numeric(final_df$allstar) - 1
-final_train$allstar <- as.numeric(final_train$allstar) - 1
-final_test$allstar <- as.numeric(final_test$allstar) - 1
+final_df$allstar <- as.numeric(final_df$allstar)
+final_train$allstar <- as.numeric(final_train$allstar)
+final_test$allstar <- as.numeric(final_test$allstar)
 
 #rerun cv splits for updated outcome class
 final_cv2 <- final_train %>% group_vfold_cv(group = year)
@@ -288,24 +288,24 @@ final_recipe2 <- final_train %>% recipe(allstar ~ .) %>%
 model_en = linear_reg(penalty = tune(), mixture = tune()) %>% set_engine("glmnet")
 
 #Define the workflow
-workflow_en = workflow() %>% 
+workflow_enlinreg = workflow() %>% 
   add_model(model_en) %>% 
   add_recipe(final_recipe2)
 
 
 #run the model
-cv_en = workflow_en %>%
+cv_reg = workflow_enlinreg %>%
   tune_grid(
     final_cv2,
     grid = grid_regular(mixture(), penalty(), levels = 5:5),
     metrics = metric_set(rmse)
   )
 
-cv_en %>% collect_metrics() %>% arrange(mean)
+cv_reg %>% collect_metrics() %>% arrange(mean)
 #finalize 
 
 enlinreg_final <- workflow_enlinreg%>%
-  finalize_workflow(select_best(cv_enlinreg, metric="rmse"))
+  finalize_workflow(select_best(cv_reg, metric="rmse"))
 
 #fit final model
 
@@ -316,17 +316,12 @@ enlinreg_final_fit = enlinreg_final%>%fit(data=final_train)
 
 test_hat = enlinreg_final_fit %>% predict(new_data = final_test)
 
-head(test_hat)
-
-
 enlinreg_df = data.frame(
   player = final_test$player,
   year = final_test$year,
   allstar = test_hat
 )
 
-#view
-enlinreg_df
 
 #graph
 enlinreg_df%>%filter(.pred>0.5, year==2004)%>%ggplot(aes(x=player, y=.pred))+geom_col()
@@ -336,12 +331,12 @@ enlinreg_df%>%filter(.pred>0.5, year==2008)%>%ggplot(aes(x=player, y=.pred, fill
 # predicts manu ginobli 9
 
 #select the best model based on rmse
-best_flow_reg <- workflow_en %>%
-  finalize_workflow(select_best(cv_en, metric = "rmse")) %>%
+best_flow_reg <- workflow_enlinreg %>%
+  finalize_workflow(select_best(cv_reg, metric = "rmse")) %>%
   fit(data = final_train)
 
 #pull the best regression model
-best_tree <- best_flow_reg %>% pull_workflow_fit()
+best_reg <- best_flow_reg %>% pull_workflow_fit()
 
 #Fitting the final model
 final_fit_reg = best_flow_reg %>% fit(data = final_train)
@@ -349,31 +344,52 @@ final_fit_reg = best_flow_reg %>% fit(data = final_train)
 #Predict onto the test data
 y_hat_reg = final_fit_reg %>% predict(new_data = final_test, type ="numeric")
 
-final_test$allstar_prob <- y_hat_reg$.pred
+final_test$allstar_reg <- y_hat_reg$.pred
 
 #Now, lets take the top 27 estimates for each year and guess those as our allstars
 
 ###NOTE: There seems to be an issue with this for loop. I think we need to create the allstar_pred vectors separately outside of the df then merge them into the test df. Then we can use that for a confusion matrix
 for (i in unique(final_test$year)) {
-  cutoff <- final_test[final_test$year == i,] %>% pull(allstar_prob) %>%
+  #generate cutoff value such that 25 players are above it
+  cutoff <- final_test[final_test$year == i,] %>% select(allstar_reg) %>%
+    pull() %>%
     sort(decreasing = TRUE) %>%
     .[25]
-  final_test[final_test$year == i,] %>%
-    mutate(allstar_pred = ifelse(allstar_prob>=cutoff,1,0))
+  
+  #get vector of allstar regression results
+  year_allstar_reg <- final_test[final_test$year == i,] %>%
+    select(allstar_reg) %>% pull()
+  
+  #turn allstar_values into binary
+  year_allstar_pred <- ifelse(year_allstar_reg>=cutoff,1,0)
+  
+  #if statement: add to allstar_pred_vec
+  if (exists("allstar_pred_vec")) {
+    allstar_pred_vec <- append(allstar_pred_vec,year_allstar_pred)
+  }
+  #if statement: create original allstar_pred_vec
+  if (!exists("allstar_pred_vec")) {
+    allstar_pred_vec <- year_allstar_pred
+  }
 }
 
+#add predictions to testing df
+final_test$allstar_pred <- allstar_pred_vec
+
+#generate confusion matrix
 cm_logistic_reg = conf_mat(
   data = tibble(
-    y_hat = y_hat_tree %>% unlist(),
-    y = final_test$allstar
+    y_hat = final_test$allstar_pred %>% unlist() %>% as.factor(),
+    y = as.factor(final_test$allstar - 1)
   ),
   truth = y, estimate = y_hat
 )
 
-cm_logistic_tree$table %>% as.data.frame() %>%
-  mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
-  ggplot(aes(x = result, y = Freq)) +
-  geom_bar(stat = "identity") +
+#plot confusion matrix
+cm_logistic_reg$table %>% as.data.frame() %>%
+    mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
+    filter(!result == "True Negative") %>% 
+  ggplot(aes(x = result, y = Freq)) + geom_bar(stat = "identity")
   geom_text(aes(x = "False Negative",y = c(600,750,900,1050),label = paste(result,"s: ",Freq,sep = "")))
 ```
 
