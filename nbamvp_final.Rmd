@@ -38,13 +38,9 @@ seasonstats_df <- read.csv("data/Seasons_Stats.csv") %>%
   mutate(season = paste(Year-1,Year,sep = "-")) %>%
   #reorder columns for convenience
   .[,c(1,2,54,3:53)] %>% clean_names() %>%
-<<<<<<< HEAD
-  #Only considering data after the 1985 season
-  filter(year>2000) %>%
-=======
   #Only considering data after the 1999 season
   filter(year>1999) %>%
->>>>>>> 5ee6c02a883a402706772b084446fea4bbbc57a3
+
   #Clean up player names
   mutate(player = gsub(" +$","",gsub("[^[:alpha:]]"," ",player)))
 
@@ -262,9 +258,9 @@ cm_logistic_tree$table %>% as.data.frame() %>%
 
 ```{r elasticnet_lin_reg}
 #change allstar to numeric for compatibility with linear regression
-final_df$allstar <- as.numeric(final_df$allstar) - 1
-final_train$allstar <- as.numeric(final_train$allstar) - 1
-final_test$allstar <- as.numeric(final_test$allstar) - 1
+final_df$allstar <- as.numeric(final_df$allstar) 
+final_train$allstar <- as.numeric(final_train$allstar) 
+final_test$allstar <- as.numeric(final_test$allstar) 
 
 #rerun cv splits for updated outcome class
 final_cv2 <- final_train %>% group_vfold_cv(group = year)
