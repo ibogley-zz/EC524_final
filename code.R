@@ -1,21 +1,3 @@
----
-title: "NBA MVP Predictions"
-author: "Ian Bogley, Jonas Bowman"
-date: "2/22/2021"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,warning = FALSE,cache = TRUE)
-```
-
-A constant in the sporting world is attempting to predict various metrics associated with these unpredictable games. From march madness, where individuals make their bets for how college playoffs will turn out to sports fans arguing over whether their team will succeed.
-
-An interesting application of this may be in the MVP and All-star selections, where players are chosen based off of voting systems associated with media spectators and individual ones. One question is whether we might be able to use computer algorithms and data analysis to predict how voters chose these prestigious awards.
-
-Let's use standard machine learning techniques to attempt predictions on an NBA season's MVP and all-star selections. To start, lets load the packages we need for this project.
-
-```{r intro}
 ###PACKAGES###
 library(pacman)
 p_load(rvest,tidyverse,janitor,tidymodels,broom,
@@ -40,7 +22,7 @@ seasonstats_df <- read.csv("data/Seasons_Stats.csv") %>%
   .[,c(1,2,54,3:53)] %>% clean_names() %>%
   #Only considering data after the 1999 season
   filter(year>1999) %>%
-
+  
   #Clean up player names
   mutate(player = gsub(" +$","",gsub("[^[:alpha:]]"," ",player)))
 
@@ -72,16 +54,7 @@ allstars <- read_html("https://en.wikipedia.org/wiki/List_of_NBA_All-Stars") %>%
 allstars$player[1] <- "Kareem Abdul Jabbar"
 allstars$player[19] <- "Hakeem Olajuwon"
 allstars$player[430] <- "Metta World Peace"
-```
 
-Here, we have 5 datasets.
-- playerstats_df: Years a player was in the NBA, their position, physical characteristics, college, and birth date
-- players_df: Mostly identical variables to playerstats_df, just with birth city and state included
-- seasonstats_df: Each player's season statistics by year.
-- mvp: Webscrapped from wikipedia, this dataframe has a list of mvp's from each season
-- allstars: Webscrapped from wikipedia, this dataframe has a list of all players chosen for an allstar game, along with the years they were selected
-
-```{r data_wrangling}
 #merging the player df's
 df_halffull <- left_join(seasonstats_df, players_df,playerstats_df, by = "player")
 
@@ -124,9 +97,8 @@ final_df <- full_df %>%
 for (i in c("C","PG","PF","SG","SF")) {
   eval(parse(text = paste("final_df$",i,"<- as.numeric(grepl('",i,"',final_df$pos))",sep = "")))
 }
-```
 
-```{r elasticnet}
+###Elasticnet Logistic Regression###
 set.seed(8237)
 
 #split df into training and testing sets by randomly choosing years, each as their own sample
@@ -210,9 +182,6 @@ cm_logisticp = conf_mat(
 )
 
 
-
-head(p_hatlogit)
-
 #create logit dataframe
 logit_df = data.frame(
   player = final_test$player,
@@ -224,47 +193,28 @@ logit_df = data.frame(
 ##graph 2006 predictions 
 logit_df%>% filter(allstar>.9, year==2006)%>%ggplot(aes(x=allstar, y= reorder(player,(allstar)),fill=player))+geom_col()+theme_classic(base_size = 12)+scale_fill_viridis_d() +xlab("Prediction") +ylab("Player")+ ggtitle("2006 Allstar Predictions Logistic Regression Model")
 
-
-
-
-
-
-
-
+#logistic visual
 cm_logistic$table %>% as.data.frame() %>%
   mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
   ggplot(aes(x = result, y = Freq)) +
   geom_bar(stat = "identity") +xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Logistic Model")+theme_bw()+scale_fill_brewer()
-  
 
-  geom_text(aes(x = "False Negative",y = c(600,750,900,1050),label = paste(result,"s: ",Freq,sep = "")))
-  
+#graph without true negatives
+cm_logistic$table %>% as.data.frame() %>%
+  mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
+  filter(result!= "True Negative")%>%
+  ggplot(aes(x = result, y = Freq, fill =result)) +
+  geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Logistic Model")+theme_bw()+scale_fill_brewer()
 
-  ##graph without true negatives
-  cm_logistic$table %>% as.data.frame() %>%
-    mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
-    filter(result!= "True Negative")%>%
-    ggplot(aes(x = result, y = Freq, fill =result)) +
-    geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Logistic Model")+theme_bw()+scale_fill_brewer()
-  
-
-  cm_logistic$table %>% as.data.frame() %>%
-    mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
-    filter(result!= "True Negative")%>%
-    ggplot(aes(x = result, y = Freq, fill =result)) + labs(fill = "Result")+
-    geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Logistic Model")+theme_classic(base_size = 12)+scale_fill_manual(values=c( "#B54213","#161616", "#EF7F4D" ))
-  
-  
+#logistic
+cm_logistic$table %>% as.data.frame() %>%
+  mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
+  filter(result!= "True Negative")%>%
+  ggplot(aes(x = result, y = Freq, fill =result)) + labs(fill = "Result")+
+  geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Logistic Model")+theme_classic(base_size = 12)+scale_fill_manual(values=c( "#B54213","#161616", "#EF7F4D" ))
 
 
-
-
-
-```
-
-```{r tree}
-
-
+###Decision Tree###
 #decision tree model
 model_tree <- decision_tree(
   mode = "classification",
@@ -305,6 +255,7 @@ final_fit_tree = best_flow_tree %>% fit(data = final_train)
 #Predict onto the test data
 y_hat_tree = final_fit_tree %>% predict(new_data = final_test, type ="class")
 
+#confusion matrix for decision tree
 cm_logistic_tree = conf_mat(
   data = tibble(
     y_hat = y_hat_tree %>% unlist(),
@@ -313,6 +264,7 @@ cm_logistic_tree = conf_mat(
   truth = y, estimate = y_hat
 )
 
+#decision tree visuals
 cm_logistic_tree$table %>% as.data.frame() %>%
   mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
   ggplot(aes(x = result, y = Freq)) +
@@ -322,12 +274,10 @@ cm_logistic_tree$table %>% as.data.frame() %>%
 
 cm_logistic_tree
 
-
-
-
-
+#predict probabilities
 p_hat_tree = final_fit_tree %>% predict(new_data = final_test, type ="prob")
 
+#confusion matrix from estimates
 cm_logistic_treep = conf_mat(
   data = tibble(
     p_hat = p_hat_tree %>% unlist(),
@@ -338,8 +288,6 @@ cm_logistic_treep = conf_mat(
 
 
 ##create a decision tree data frame
-
-
 tree_df = data.frame(
   player = final_test$player,
   year = final_test$year,
@@ -351,25 +299,14 @@ tree_df = data.frame(
 tree_df%>% filter(allstar..pred_2>0.9, year==2006)%>%ggplot(aes(x=allstar..pred_2, y= reorder(player,(allstar..pred_2)),fill=player))+geom_col()+theme_classic(base_size = 12)+scale_fill_viridis_d() +xlab("Prediction") +ylab("Player")+ ggtitle("2006 Allstar Predictions Decision Tree")
 
 
+##graph without true negatives
+cm_logistic_tree$table %>% as.data.frame() %>%
+  mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
+  filter(result!= "True Negative")%>%
+  ggplot(aes(x = result, y = Freq, fill =result)) +
+  geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Decision Tree Model")+theme_bw()+scale_fill_brewer()
 
-
-
-
-  ##graph without true negatives
-  cm_logistic_tree$table %>% as.data.frame() %>%
-    mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
-    filter(result!= "True Negative")%>%
-    ggplot(aes(x = result, y = Freq, fill =result)) +
-    geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Decision Tree Model")+theme_bw()+scale_fill_brewer()
-  
-
-
-
-
-
-```
-
-```{r elasticnet_lin_reg}
+###Elasticnet Linear Regression###
 #change allstar to numeric for compatibility with linear regression
 final_df$allstar <- as.numeric(final_df$allstar)-1
 final_train$allstar <- as.numeric(final_train$allstar)-1
@@ -411,18 +348,15 @@ cv_enlinreg = workflow_en %>%
   )
 
 cv_en %>% collect_metrics() %>% arrange(mean)
-#finalize 
 
+#finalize 
 enlinreg_final <- workflow_enlinreg%>%
   finalize_workflow(select_best(cv_enlinreg, metric="rmse"))
 
 #fit final model
-
 enlinreg_final_fit = enlinreg_final%>%fit(data=final_train)
 
 #predict onto test data
-
-
 test_hat = enlinreg_final_fit %>% predict(new_data = final_test)
 
 head(test_hat)
@@ -448,7 +382,7 @@ final_test$allstar_reg <- test_hat$.pred
 
 #Now, lets take the top 27 estimates for each year and guess those as our allstars
 
-###NOTE: There seems to be an issue with this for loop. I think we need to create the allstar_pred vectors separately outside of the df then merge them into the test df. Then we can use that for a confusion matrix
+
 for (i in unique(final_test$year)) {
   #generate cutoff value such that 25 players are above it
   cutoff <- final_test[final_test$year == i,] %>% select(allstar_reg) %>%
@@ -473,10 +407,13 @@ for (i in unique(final_test$year)) {
   }
 }
 
+#add predictions to df
 final_test$allstar_pred <- allstar_pred_vec
 
+#make predictions
 y_hat_tree <- final_test$allstar_pred
 
+#confusion matrix
 cm_lin_reg = conf_mat(
   data = tibble(
     y_hat = as.factor(y_hat_tree) %>% unlist(),
@@ -485,24 +422,28 @@ cm_lin_reg = conf_mat(
   truth = y, estimate = y_hat
 )
 
+#lin reg visuals
 cm_lin_reg$table %>% as.data.frame() %>%
   mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
   ggplot(aes(x = result, y = Freq)) +
   geom_bar(stat = "identity") +
   geom_text(aes(x = "False Negative",y = c(600,750,900,1050),label = paste(result,"s: ",Freq,sep = "")))
-```
 
-```{r, boost}
+cm_lin_reg$table %>% as.data.frame() %>%
+  mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
+  filter(result!= "True Negative")%>%
+  ggplot(aes(x = result, y = Freq, fill =result)) + labs(fill = "Result")+
+  geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Elasticnet Linear Regression Model")+theme_classic(base_size = 12)+scale_fill_manual(values=c( "#B54213","#161616", "#EF7F4D" ))
 
+
+### Boost model###
 #define boost model
-
 allstar_boost = boost_tree(
   mtry= NULL,
   trees=10,
   min_n =NULL,
   tree_depth = tune(),
   learn_rate = tune()
-  
 ) %>% set_engine(
   engine = "xgboost") %>% 
   set_mode("classification")
@@ -510,12 +451,10 @@ allstar_boost = boost_tree(
 
 
 #define workflow 
-
 allstar_boost_wf =
   workflow()%>% add_model(allstar_boost)%>%add_recipe(final_recipe)
 
 #run model
-
 cv_boost = allstar_boost_wf %>%
   tune_grid(
     final_cv,
@@ -524,12 +463,9 @@ cv_boost = allstar_boost_wf %>%
   )
 
 #show the best model
-
 cv_boost %>% show_best()
 
 #finalize workflow and use it to predict onto test data
-
-
 final_boost = 
   allstar_boost_wf %>%
   finalize_workflow(select_best(cv_boost, "accuracy"))
@@ -541,11 +477,9 @@ final_fit_boost = final_boost %>% fit(data =final_train)
 
 
 #predict onto test data
-
-
 p_hat = final_fit_boost %>% predict(new_data = final_test, type="class")
 
-
+#confusion matrix
 cm_boost = conf_mat(
   data =tibble(
     p_hat = p_hat %>% unlist(),
@@ -564,18 +498,11 @@ head(p_hat)
 cm_boost$table %>% as.data.frame() %>%
   mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
   ggplot(aes(x = result, y = Freq, fill =result)) +theme_bw()+scale_fill_brewer() +geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") + 
-geom_text(aes(x = "False Negative",y = c(600,750,900,1050),label = paste(result,"s: ",Freq,sep = "")))
+  geom_text(aes(x = "False Negative",y = c(600,750,900,1050),label = paste(result,"s: ",Freq,sep = "")))
 
-  ##graph without true negatives
-  cm_boost$table %>% as.data.frame() %>%
-    mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
-    filter(result!= "True Negative")%>%
-    ggplot(aes(x = result, y = Freq, fill =result)) +
-    geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Boosted Model")+theme_bw()+scale_fill_brewer()
-  
-  
-
-
-```
-
-
+##graph without true negatives
+cm_boost$table %>% as.data.frame() %>%
+  mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
+  filter(result!= "True Negative")%>%
+  ggplot(aes(x = result, y = Freq, fill =result)) +
+  geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Boosted Model")+theme_bw()+scale_fill_brewer()
