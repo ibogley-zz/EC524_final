@@ -447,7 +447,7 @@ allstar_boost = boost_tree(
 ) %>% set_engine(
   engine = "xgboost") %>% 
   set_mode("classification")
-
+final_test$allstar <- as.factor(final_test$allstar)
 
 
 #define workflow 
