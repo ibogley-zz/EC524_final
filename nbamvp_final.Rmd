@@ -21,7 +21,7 @@ library(pacman)
 p_load(rvest,tidyverse,janitor,tidymodels,broom,
        rpart,rpart.plot)
 
-final_df$allstar= as.factor(final_df$allstar)
+#final_df$allstar= as.factor(final_df$allstar)
 ###DATA###
 ##Read in data, use janitor::clean_names for renaming columns
 
@@ -227,10 +227,6 @@ logit_df%>% filter(allstar>.9, year==2006)%>%ggplot(aes(x=allstar, y= reorder(pl
 
 
 
-
-
-
-
 cm_logistic$table %>% as.data.frame() %>%
   mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
   ggplot(aes(x = result, y = Freq)) +
@@ -241,13 +237,6 @@ cm_logistic$table %>% as.data.frame() %>%
   
 
   ##graph without true negatives
-  cm_logistic$table %>% as.data.frame() %>%
-    mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
-    filter(result!= "True Negative")%>%
-    ggplot(aes(x = result, y = Freq, fill =result)) +
-    geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Logistic Model")+theme_bw()+scale_fill_brewer()
-  
-
   cm_logistic$table %>% as.data.frame() %>%
     mutate(result = c("True Negative","False Positive","False Negative","True Positive")) %>%
     filter(result!= "True Negative")%>%
@@ -361,8 +350,8 @@ tree_df%>% filter(allstar..pred_2>0.9, year==2006)%>%ggplot(aes(x=allstar..pred_
     filter(result!= "True Negative")%>%
     ggplot(aes(x = result, y = Freq, fill =result)) +
     geom_bar(stat = "identity") + xlab("Result")+ylab("Frequency") +ggtitle("Allstar Predictions from Decision Tree Model")+theme_bw()+scale_fill_brewer()
-  
 
+  
 
 
 
@@ -397,20 +386,20 @@ final_recipe2 <- final_train %>% recipe(allstar ~ .) %>%
 model_en = linear_reg(penalty = tune(), mixture = tune()) %>% set_engine("glmnet")
 
 #Define the workflow
-workflow_en = workflow() %>% 
+workflow_enlinreg = workflow() %>% 
   add_model(model_en) %>% 
   add_recipe(final_recipe2)
 
 
 #run the model
-cv_enlinreg = workflow_en %>%
+cv_enlinreg = workflow_enlinreg %>%
   tune_grid(
     final_cv2,
     grid = grid_regular(mixture(), penalty(), levels = 5:5),
     metrics = metric_set(rmse)
   )
 
-cv_en %>% collect_metrics() %>% arrange(mean)
+cv_enlinreg %>% collect_metrics() %>% arrange(mean)
 #finalize 
 
 enlinreg_final <- workflow_enlinreg%>%
@@ -440,7 +429,7 @@ enlinreg_df
 
 ##graph of 2006 predictions 
 enlinreg_df$player = with(enlinreg_df, reorder(player,.pred))
-enlinreg_df%>% filter(.pred>1.65, year==2006)%>%ggplot(aes(x=.pred, y= reorder(player,(.pred)),fill=player))+geom_col()+theme_classic(base_size = 12)+scale_fill_viridis_d() +xlab("Prediction") +ylab("Player")+ ggtitle("2006 Allstar Predictions Boosted Model")
+enlinreg_df%>% filter(.pred>7.5, year==2006)%>%ggplot(aes(x=.pred, y= reorder(player,(.pred)),fill=player))+geom_col()+theme_classic(base_size = 12)+scale_fill_viridis_d() +xlab("Prediction") +ylab("Player")+ ggtitle("2006 Allstar Predictions Linear Regression Model")
 
 
 final_test$allstar_reg <- test_hat$.pred
@@ -490,6 +479,10 @@ cm_lin_reg$table %>% as.data.frame() %>%
   ggplot(aes(x = result, y = Freq)) +
   geom_bar(stat = "identity") +
   geom_text(aes(x = "False Negative",y = c(600,750,900,1050),label = paste(result,"s: ",Freq,sep = "")))
+
+
+
+
 ```
 
 ```{r, boost}
