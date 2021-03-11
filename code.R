@@ -248,7 +248,7 @@ best_flow_tree <- tree_workflow %>%
 best_tree <- best_flow_tree %>% pull_workflow_fit()
 
 #plot decision tree
-best_tree$fit %>% rpart.plot()
+best_tree$fit %>% rpart.plot(cex = 1)
 #Fitting the final model
 final_fit_tree = best_flow_tree %>% fit(data = final_train)
 
